@@ -73,6 +73,10 @@
   pre.code{background:var(--panel2);border:1px solid var(--line);border-left:2px solid var(--green-deep);
     border-radius:6px;padding:12px;overflow-x:auto;margin:10px 0;font-size:12.5px;line-height:1.55}
   .err{color:var(--err)}
+  .trace{margin:8px 0 0;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:6px;font-size:11px;line-height:1.75;color:var(--muted)}
+  .trace .t{color:var(--green);}
+  .trace .d{color:var(--text)}
   .empty{color:var(--muted);line-height:1.9}
   .empty b{color:var(--green-dim);font-weight:600}
 
@@ -113,6 +117,16 @@
     <h2>Keys</h2>
     <div id="keys"></div>
     <button class="ghost" id="clearkeys">Remove all</button>
+  </div>
+
+  <div class="sec">
+    <h2>Repository</h2>
+    <input id="repo" placeholder="owner/repo  e.g. HIveAppDeveloper/Hive-app" autocapitalize="off" spellcheck="false">
+    <button class="ghost" id="checkrepo">Connect</button>
+    <div class="hint" id="repohint">
+      Set a repo and OllyAI reads and edits it directly. Public repos are readable
+      with no token; add a GitHub token to reach private repos or to commit.
+    </div>
   </div>
 
   <div class="sec">
@@ -165,6 +179,7 @@ let meta = {};      // providerId -> {label, masked, verified, free}
 let messages = [];
 let busy = false;
 let host = { hostKey: false };   // what the deployment itself provides
+let repo = localStorage.getItem('ollyai.repo') || '';
 
 try {
   const saved = JSON.parse(localStorage.getItem(KEYS) || '{}');
@@ -254,6 +269,26 @@ $('#addkey').onclick = async () => {
 
 $('#clearkeys').onclick = () => { keys = {}; meta = {}; persist(); renderKeys(); };
 
+$('#checkrepo').onclick = async () => {
+  repo = $('#repo').value.trim();
+  try { localStorage.setItem('ollyai.repo', repo); } catch { /* private mode */ }
+  if (!repo) { $('#repohint').textContent = 'Cleared. OllyAI is not connected to a repository.'; return; }
+  $('#repohint').textContent = 'Checking…';
+  try {
+    const r = await post('/api/repo', { keys, repo });
+    if (r.ok) {
+      $('#repohint').innerHTML =
+        `Connected to <b>${r.slug}</b> (${r.private ? 'private' : 'public'}, default `
+        + `<b>${r.defaultBranch}</b>).<br>${r.canPush
+          ? 'You can commit — edits go to a new branch and open a pull request.'
+          : 'Read-only: add a token with write access to commit.'}`;
+    } else {
+      $('#repohint').innerHTML = `<span class="err">${r.error}</span>`
+        + (keys.github ? '' : '<br>Add a GitHub token in the key panel for private repos.');
+    }
+  } catch (e) { $('#repohint').innerHTML = `<span class="err">${e.message}</span>`; }
+};
+
 $('#showroute').onclick = async () => {
   if (!Object.keys(keys).length && !host.hostKey) {
     $('#rank').innerHTML = '<div class="hint">Add a key first.</div>'; return;
@@ -282,14 +317,19 @@ async function send() {
 
   const pending = add('assistant', 'routing…');
   try {
-    const r = await post('/api/chat', { keys, messages, task: $('#task').value });
+    const r = await post('/api/chat', { keys, messages, task: $('#task').value, repo });
     messages.push({ role: 'assistant', content: r.reply });
     const fo = r.failovers?.length
       ? `<span class="fo">failed over ${r.failovers.length}×</span> · ` : '';
-    pending.innerHTML = `<div class="who">⬢ ollyai</div><div class="body">${render(r.reply)}</div>
+    const trace = r.trace?.length
+      ? `<div class="trace">${r.trace.map((t) =>
+          `<span class="t">⏺ ${t.tool}</span> <span class="d">${t.detail || ''}</span>`).join('<br>')}</div>`
+      : '';
+    const br = r.branch ? `<span class="pill">branch ${r.branch}</span>` : '';
+    pending.innerHTML = `<div class="who">⬢ ollyai</div><div class="body">${render(r.reply)}</div>${trace}
       <div class="meta">${fo}<span class="pill">${r.modelName || r.model}</span>
       <span class="pill">${r.provider}</span><span class="pill">${r.task}</span>
-      <span class="pill">${(r.ms / 1000).toFixed(1)}s</span>${r.free ? '<span class="pill">free</span>' : ''}</div>`;
+      <span class="pill">${(r.ms / 1000).toFixed(1)}s</span>${br}${r.free ? '<span class="pill">free</span>' : ''}</div>`;
   } catch (e) {
     pending.innerHTML = `<div class="who">⬢ ollyai</div><div class="body err">${e.message}</div>`;
   } finally {
@@ -335,6 +375,7 @@ async function loadStatus() {
 
 renderKeys();
 loadStatus();
+if (repo) $('#repo').value = repo;
 $('#input').focus();
 </script>
 </body>

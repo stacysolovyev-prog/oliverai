@@ -173,8 +173,25 @@ and `chat` (one routed completion).
 Keys pasted in the browser live in `localStorage` and are sent only with that
 visitor's own requests. The server stores and logs nothing.
 
-The web app answers questions and writes code, but it cannot touch your
-filesystem. Editing files in a repo is the CLI's job.
+### Editing repos from the web app
+
+Enter `owner/repo` in the **Repository** box and OllyAI works on it directly
+through the GitHub API — no clone, no local checkout:
+
+| | |
+|---|---|
+| **Public repo, no token** | read and search files |
+| **+ a GitHub token** | private repos, and committing |
+
+Writes never touch the default branch. The first edit creates an `ollyai/…`
+working branch, commits land there, and `gh_open_pr` raises a pull request — so
+everything arrives as a reviewable diff.
+
+For a fine-grained PAT, grant **Contents: read and write** and **Pull requests:
+read and write** on the repos you want it to reach.
+
+The web app cannot run your tests or a build — there is no filesystem behind it.
+For that, use the CLI, which works on a real checkout.
 
 ## Working on your own repos
 
