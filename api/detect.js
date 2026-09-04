@@ -4,6 +4,9 @@ import { verifyKey } from '../src/router/chat.js';
 import { PROVIDERS } from '../src/router/providers.js';
 import { json, readJsonBody } from './_lib.js';
 
+/** Model calls can legitimately take tens of seconds. */
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { error: 'POST only' });
   let body;

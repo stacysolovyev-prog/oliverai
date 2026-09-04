@@ -2,6 +2,9 @@
 import { OmniRouter } from '../src/router/router.js';
 import { json, readJsonBody, keysFromRequest } from './_lib.js';
 
+/** Model calls can legitimately take tens of seconds. */
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { error: 'POST only' });
   let body;

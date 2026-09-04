@@ -1,3 +1,5 @@
+import { PROVIDERS } from '../src/router/providers.js';
+
 /** Shared helpers for the serverless endpoints. */
 
 // The key store writes to OLLYAI_HOME; on Vercel only /tmp is writable.
@@ -20,12 +22,36 @@ export async function readJsonBody(req) {
 }
 
 /**
+ * Keys the deployment itself provides, from environment variables. Setting any
+ * of these makes the site work with no key pasted - useful for a personal
+ * deployment. Leave them unset and every visitor simply brings their own.
+ */
+/**
+ * Variable names that commonly exist for unrelated reasons. A bare GITHUB_TOKEN
+ * is usually CI's, not an inference credential, and trusting it makes the site
+ * claim it is ready when no model can actually be served.
+ */
+const AMBIGUOUS_ENV = new Set(['GITHUB_TOKEN', 'GH_TOKEN']);
+
+export function hostKeys() {
+  const out = {};
+  for (const [id, p] of Object.entries(PROVIDERS)) {
+    if (p.kind) continue; // git hosts are not inference providers
+    for (const v of p.envVars || []) {
+      if (AMBIGUOUS_ENV.has(v)) continue;
+      if (process.env[v]) { out[id] = process.env[v]; break; }
+    }
+  }
+  return out;
+}
+
+/**
  * Keys arrive with each request and are used only to serve it. Nothing is
  * written to disk and nothing is logged, so the deployment never holds a
- * visitor's credentials.
+ * visitor's credentials. A visitor's own key always wins over the host's.
  */
 export function keysFromRequest(body) {
-  const out = {};
+  const out = hostKeys();
   for (const [k, v] of Object.entries(body.keys || {})) {
     if (typeof v === 'string' && v.trim()) out[k] = v.trim();
   }

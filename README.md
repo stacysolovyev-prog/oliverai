@@ -113,26 +113,65 @@ Perplexity.
 
 ## Web app (Vercel)
 
-The same router, in the browser. `public/` is the UI; `api/` holds three
-serverless endpoints — `detect` (identify a pasted key), `route` (the ranking
-table), `chat` (one routed completion).
+### What key does the deployment need?
+
+**None.** There is nothing to configure — deploy it and it works. Visitors paste
+their own key into the sidebar and it stays in their browser.
+
+If you want *your* deployment to work without anyone pasting anything, set one
+environment variable in Vercel:
+
+| Name | Value |
+|---|---|
+| `GEMINI_API_KEY` | a free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+
+Any provider works — `NVIDIA_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`,
+`CEREBRAS_API_KEY`, and so on. Set one and the site shows *"Ready — no key
+needed"*. A visitor's own key always takes priority over yours.
+
+> Setting a host key means anyone who opens your URL spends **your** free-tier
+> quota. Leave it unset for a public link; set it for a private one.
+
+### Deploy
+
+```bash
+npm i -g vercel
+vercel --prod
+```
+
+Or import the repo at [vercel.com/new](https://vercel.com/new). No build step,
+no framework, no dependencies — Vercel serves `public/` and turns `api/*.js`
+into functions automatically.
+
+To add the host key afterwards:
+
+```bash
+vercel env add GEMINI_API_KEY production
+vercel --prod                              # redeploy so it takes effect
+```
+
+### Custom domain
+
+```bash
+vercel domains add yourdomain.com
+```
+
+Or in the dashboard: **Project → Settings → Domains → Add**. Vercel gives you
+the DNS records to point at your registrar. Every project also gets a free
+`*.vercel.app` domain immediately.
+
+### Run it locally
 
 ```bash
 npm run web           # http://localhost:3000
 ```
 
-Deploy it:
+`public/` is the UI; `api/` holds four endpoints — `status` (what the
+deployment has), `detect` (identify a pasted key), `route` (the ranking table)
+and `chat` (one routed completion).
 
-```bash
-npm i -g vercel
-vercel                # preview URL
-vercel --prod         # production domain
-```
-
-No environment variables are needed. **Keys you paste in the web UI stay in
-your browser's localStorage** and are sent only with your own requests — the
-deployment never stores or logs a visitor's credentials, so anyone can open
-your URL and use their own key.
+Keys pasted in the browser live in `localStorage` and are sent only with that
+visitor's own requests. The server stores and logs nothing.
 
 The web app answers questions and writes code, but it cannot touch your
 filesystem. Editing files in a repo is the CLI's job.

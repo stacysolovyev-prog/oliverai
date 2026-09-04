@@ -100,7 +100,7 @@
   </div>
 
   <div class="sec">
-    <h2>Add a key — any format</h2>
+    <h2 id="keyhdr">Add a key — any format</h2>
     <textarea id="keyin" rows="3" placeholder="nvapi-…  ·  GROQ_API_KEY=gsk_…  ·  {&quot;api_key&quot;:&quot;…&quot;}  ·  a curl command  ·  your whole .env"></textarea>
     <button id="addkey">Detect &amp; add</button>
     <div class="hint" id="keyhint">
@@ -137,6 +137,7 @@
 
   <div id="log">
     <div class="empty" id="empty">
+      <div id="ready"></div>
       <b>OllyAI</b> routes every message to the best model your keys can reach,
       and fails over automatically when one rate-limits.<br><br>
       <b>1.</b> Paste an API key on the left — bare token, <code>KEY=value</code>, JSON,
@@ -163,6 +164,7 @@ let keys = {};      // providerId -> key
 let meta = {};      // providerId -> {label, masked, verified, free}
 let messages = [];
 let busy = false;
+let host = { hostKey: false };   // what the deployment itself provides
 
 try {
   const saved = JSON.parse(localStorage.getItem(KEYS) || '{}');
@@ -176,9 +178,9 @@ function persist() {
 
 function renderKeys() {
   const n = Object.keys(keys).length;
-  $('#status').textContent = n
-    ? `${n} provider${n === 1 ? '' : 's'} · routing on`
-    : 'no key yet';
+  if (n) $('#status').textContent = `${n} provider${n === 1 ? '' : 's'} · routing on`;
+  else if (host.hostKey) $('#status').textContent = `ready · ${host.brain?.name || 'host key'} · no key needed`;
+  else $('#status').textContent = 'no key yet';
   $('#keys').innerHTML = Object.keys(keys).length
     ? Object.entries(keys).map(([id]) => {
         const m = meta[id] || {};
@@ -253,7 +255,9 @@ $('#addkey').onclick = async () => {
 $('#clearkeys').onclick = () => { keys = {}; meta = {}; persist(); renderKeys(); };
 
 $('#showroute').onclick = async () => {
-  if (!Object.keys(keys).length) { $('#rank').innerHTML = '<div class="hint">Add a key first.</div>'; return; }
+  if (!Object.keys(keys).length && !host.hostKey) {
+    $('#rank').innerHTML = '<div class="hint">Add a key first.</div>'; return;
+  }
   $('#rank').innerHTML = '<div class="hint">Ranking…</div>';
   try {
     const r = await post('/api/route', { keys, task: $('#task').value });
@@ -266,7 +270,10 @@ $('#showroute').onclick = async () => {
 async function send() {
   const text = $('#input').value.trim();
   if (!text || busy) return;
-  if (!Object.keys(keys).length) { add('assistant', 'Add an API key first — the panel on the left takes any format.'); return; }
+  if (!Object.keys(keys).length && !host.hostKey) {
+    add('assistant', 'Add an API key first — the panel on the left takes any format.');
+    return;
+  }
 
   busy = true; $('#send').disabled = true;
   $('#input').value = ''; $('#input').style.height = 'auto';
@@ -301,7 +308,33 @@ $('#input').addEventListener('input', (e) => {
   e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
 });
 
+/**
+ * Ask the deployment what it already has. If the host set a key of its own,
+ * the visitor does not need one and the UI says so instead of nagging.
+ */
+async function loadStatus() {
+  try {
+    const r = await fetch('/api/status');
+    if (!r.ok) return;
+    host = await r.json();
+  } catch { return; }
+
+  if (host.hostKey) {
+    $('#keyhdr').textContent = 'Add a key — optional';
+    $('#keyhint').innerHTML =
+      `This site already has a key (<b>${host.providers.map((p) => p.id).join(', ')}</b>), so you can just start typing. `
+      + 'Adding your own uses your quota instead; it stays in this browser.';
+    $('#ready').innerHTML =
+      `<b>Ready.</b> ${host.models} models reachable · brain: <b>${host.brain?.name || '-'}</b> `
+      + '· no key needed — just type below.<br><br>';
+  } else {
+    $('#ready').innerHTML = '<b>Add a key to begin.</b> Nothing is stored on the server.<br><br>';
+  }
+  renderKeys();
+}
+
 renderKeys();
+loadStatus();
 $('#input').focus();
 </script>
 </body>

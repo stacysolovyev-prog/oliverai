@@ -11,6 +11,9 @@ const SYSTEM = `You are OllyAI, a coding assistant. Answer concisely and
 practically. Use fenced code blocks with a language tag for any code. When you
 are unsure, say so rather than guessing at file contents you have not seen.`;
 
+/** Model calls can legitimately take tens of seconds. */
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { error: 'POST only' });
 
