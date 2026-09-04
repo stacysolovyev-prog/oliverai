@@ -33,6 +33,8 @@ export default async function handler(req, res) {
   const failovers = [];
 
   try {
+    // complete() discovers live model lists first (cached), so a provider that
+    // has retired half its catalog cannot burn the whole failover budget.
     const out = await router.complete({
       task,
       messages: [{ role: 'system', content: SYSTEM }, ...history],

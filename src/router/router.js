@@ -32,6 +32,9 @@ const FREE_BONUS = 2.0;          // applied when preferFree is on
 const TOOLS_PENALTY = 12.0;      // effectively disqualifying when tools are required
 const BASE_COOLDOWN_MS = 60_000; // doubles per consecutive failure, capped below
 const MAX_COOLDOWN_MS = 15 * 60_000;
+// A retired model or a rejected key is not a transient fault - park it for a
+// month rather than rediscovering the same failure on every single turn.
+const DEAD_COOLDOWN_MS = 30 * 24 * 60 * 60_000;
 
 // ---------------------------------------------------------------------------
 // Health tracking
@@ -74,7 +77,7 @@ export function recordFailure(provider, model, kind) {
   e.lastFail = Date.now();
   // A wrong model id or a dead key should not be retried this session at all.
   if (kind === 'badmodel' || kind === 'auth' || kind === 'quota') {
-    e.cooldownUntil = Date.now() + MAX_COOLDOWN_MS;
+    e.cooldownUntil = Date.now() + DEAD_COOLDOWN_MS;
     e.disabled = kind;
   } else {
     e.cooldownUntil = Date.now() + Math.min(MAX_COOLDOWN_MS, BASE_COOLDOWN_MS * 2 ** (e.streak - 1));
@@ -90,6 +93,25 @@ export function healthOf(provider, model) {
 export function resetHealth() {
   _health = {};
   saveHealth();
+}
+
+/** How long a discovered model list stays fresh. */
+const DISCOVERY_TTL_MS = 30 * 60_000;
+
+function discoveryFile() {
+  return paths.home + '/models.json';
+}
+
+function loadDiscovery() {
+  const raw = readJson(discoveryFile(), null);
+  if (!raw || !raw.at || Date.now() - raw.at > DISCOVERY_TTL_MS) return null;
+  return new Map(Object.entries(raw.providers || {}));
+}
+
+function saveDiscovery(map) {
+  try {
+    writeJson(discoveryFile(), { at: Date.now(), providers: Object.fromEntries(map) }, 0o600);
+  } catch { /* stateless environment: discovery just repeats next time */ }
 }
 
 // ---------------------------------------------------------------------------
@@ -201,7 +223,7 @@ export class OmniRouter {
    * new into the pool. Makes the catalog self-healing when providers rename
    * or retire models.
    */
-  async refresh({ onProgress } = {}) {
+  async refresh({ onProgress, force = true } = {}) {
     const results = [];
     for (const id of this.availableProviders()) {
       const cred = this.getKey(id);
@@ -211,7 +233,23 @@ export class OmniRouter {
       this.discovered.set(id, ids);
       results.push({ provider: id, count: ids.length });
     }
+    if (force) saveDiscovery(this.discovered);
     return results;
+  }
+
+  /**
+   * Guarantee we have a recent model list before routing.
+   *
+   * A curated catalog goes stale the moment a provider retires a model, and
+   * routing to a retired id burns an attempt for nothing. Discovery is
+   * therefore authoritative; this loads the cached answer and only goes back
+   * to the network when it has expired.
+   */
+  async ensureDiscovery() {
+    if (this.discovered.size) return;
+    const cached = loadDiscovery();
+    if (cached) { this.discovered = cached; return; }
+    await this.refresh().catch(() => {});
   }
 
   /** The full candidate pool: curated catalog plus anything discovered. */
@@ -324,6 +362,7 @@ export class OmniRouter {
     messages, tools, task = 'code', stream = false, onDelta, onFailover,
     temperature, maxTokens, signal, maxAttempts = 8,
   }) {
+    await this.ensureDiscovery();
     const needsTools = Boolean(tools?.length);
     const minCtx = estimateTokens(messages) + 2000;
     let candidates = this.rank({ task, needsTools, minCtx });
@@ -338,6 +377,8 @@ export class OmniRouter {
         { kind: 'config' },
       );
     }
+
+    candidates = spreadAcrossProviders(candidates);
 
     const errors = [];
     const tried = new Set();
@@ -403,6 +444,32 @@ export class OmniRouter {
       health: healthOf(r.provider, r.model.id),
     }));
   }
+}
+
+/**
+ * Reorder ranked candidates so consecutive attempts come from different
+ * providers.
+ *
+ * Ranking alone groups a provider's models together, so one provider whose
+ * whole catalog is retired can eat the entire attempt budget before a healthy
+ * provider is ever tried. Round-robin keeps each provider's own order intact
+ * while guaranteeing the second attempt is somewhere else entirely.
+ */
+export function spreadAcrossProviders(ranked) {
+  const groups = new Map();
+  for (const r of ranked) {
+    if (!groups.has(r.provider)) groups.set(r.provider, []);
+    groups.get(r.provider).push(r);
+  }
+  const out = [];
+  for (let i = 0; out.length < ranked.length; i += 1) {
+    let added = false;
+    for (const list of groups.values()) {
+      if (list[i]) { out.push(list[i]); added = true; }
+    }
+    if (!added) break;
+  }
+  return out;
 }
 
 /**

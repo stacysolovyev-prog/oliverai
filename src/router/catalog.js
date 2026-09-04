@@ -26,15 +26,11 @@ export const CATALOG = [
   { id: 'gemini-3.1-flash-lite',  provider: 'google', name: 'Gemini 3.1 Flash Lite', ctx: 1048576, quality: 7.3, speed: 9.9, tools: true, free: true, tags: ['fast', 'long'] },
   { id: 'gemma-4-31b-it',         provider: 'google', name: 'Gemma 4 31B',           ctx: 262144,  quality: 7.4, speed: 8.0, tools: false, free: true, tags: ['fast'] },
 
-  // ---------------- NVIDIA NIM (free open-weight models) ----------------
-  { id: 'deepseek-ai/deepseek-r1',                       provider: 'nvidia', name: 'DeepSeek R1',            ctx: 128000, quality: 9.2, speed: 5.0, tools: false, free: true, tags: ['plan'] },
-  { id: 'deepseek-ai/deepseek-v3.1',                     provider: 'nvidia', name: 'DeepSeek V3.1',          ctx: 128000, quality: 9.0, speed: 6.5, tools: true,  free: true, tags: ['plan', 'code'] },
-  { id: 'qwen/qwen3-coder-480b-a35b-instruct',           provider: 'nvidia', name: 'Qwen3 Coder 480B',       ctx: 262144, quality: 9.1, speed: 6.0, tools: true,  free: true, tags: ['code', 'long'] },
-  { id: 'qwen/qwen2.5-coder-32b-instruct',               provider: 'nvidia', name: 'Qwen2.5 Coder 32B',      ctx: 32768,  quality: 8.2, speed: 7.5, tools: true,  free: true, tags: ['code'] },
-  { id: 'meta/llama-3.3-70b-instruct',                   provider: 'nvidia', name: 'Llama 3.3 70B',          ctx: 128000, quality: 8.3, speed: 7.0, tools: true,  free: true, tags: ['code', 'plan'] },
-  { id: 'meta/llama-4-maverick-17b-128e-instruct',       provider: 'nvidia', name: 'Llama 4 Maverick',       ctx: 1048576, quality: 8.6, speed: 7.5, tools: true, free: true, tags: ['code', 'long', 'vision'] },
-  { id: 'nvidia/llama-3.3-nemotron-super-49b-v1',        provider: 'nvidia', name: 'Nemotron Super 49B',     ctx: 128000, quality: 8.4, speed: 7.2, tools: true,  free: true, tags: ['plan', 'code'] },
-  { id: 'mistralai/codestral-22b-instruct-v0.1',         provider: 'nvidia', name: 'Codestral 22B',          ctx: 32768,  quality: 7.9, speed: 8.2, tools: false, free: true, tags: ['code'] },
+  // ---------------- NVIDIA NIM ----------------
+  // Intentionally empty. NVIDIA retires model ids frequently and on its own
+  // schedule, so a hand-written list here goes stale and wastes failover
+  // attempts on models that answer "end of life". The live /models list is
+  // discovered at runtime and scored by inferModelMeta instead.
 
   // ---------------- Groq (fast, free tier) ----------------
   { id: 'moonshotai/kimi-k2-instruct',      provider: 'groq', name: 'Kimi K2',            ctx: 131072, quality: 8.9, speed: 9.2, tools: true, free: true, tags: ['code', 'plan'] },

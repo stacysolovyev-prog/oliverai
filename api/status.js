@@ -16,6 +16,7 @@ export default async function handler(req, res) {
 
   if (providers.length) {
     const router = new OmniRouter({ keys });
+    await router.ensureDiscovery();
     models = router.pool().length;
     const pick = router.pick({ task: 'code' });
     if (pick) brain = { model: pick.model.id, name: pick.model.name, provider: pick.provider };

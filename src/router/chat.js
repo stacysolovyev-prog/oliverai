@@ -30,8 +30,14 @@ export class OllyError extends Error {
  *  server    - transient upstream fault; worth a retry
  *  context   - the request was too large for this model
  */
-function classify(status, bodyText = '') {
+export function classify(status, bodyText = '') {
   const b = String(bodyText).toLowerCase();
+  // Providers retire models constantly and announce it with whatever status
+  // they feel like, so match the wording before trusting the code. These are
+  // permanent: the model is never coming back and must not be retried.
+  if (/end of life|no longer available|has been (retired|deprecated|decommissioned)|is (retired|decommissioned)|discontinued/.test(b)) {
+    return { kind: 'badmodel', retryable: false };
+  }
   if (status === 401 || status === 403) return { kind: 'auth', retryable: false };
   if (status === 429) return { kind: 'rate', retryable: true };
   if (status === 404) return { kind: 'badmodel', retryable: false };
