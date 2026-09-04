@@ -111,6 +111,44 @@ Perplexity.
 - `ask` mode (the default) confirms every file write and shell command.
   `readonly` removes those tools entirely.
 
+## Web app (Vercel)
+
+The same router, in the browser. `public/` is the UI; `api/` holds three
+serverless endpoints — `detect` (identify a pasted key), `route` (the ranking
+table), `chat` (one routed completion).
+
+```bash
+npm run web           # http://localhost:3000
+```
+
+Deploy it:
+
+```bash
+npm i -g vercel
+vercel                # preview URL
+vercel --prod         # production domain
+```
+
+No environment variables are needed. **Keys you paste in the web UI stay in
+your browser's localStorage** and are sent only with your own requests — the
+deployment never stores or logs a visitor's credentials, so anyone can open
+your URL and use their own key.
+
+The web app answers questions and writes code, but it cannot touch your
+filesystem. Editing files in a repo is the CLI's job.
+
+## Working on your own repos
+
+```bash
+olly key ghp_your_github_token     # detected as a GitHub token, stored separately
+olly
+⬢ › /clone HIveAppDeveloper/Hive-app
+⬢ › add optimistic updates to the feed and a test for the rollback path
+```
+
+`/clone` uses your stored GitHub token, so private repos work. OllyAI edits,
+runs your tests, and commits only when you ask it to.
+
 ## License
 
 MIT

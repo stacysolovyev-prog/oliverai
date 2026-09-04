@@ -161,6 +161,12 @@ export async function classifyWithModel(prompt, router) {
 export class OmniRouter {
   constructor(options = {}) {
     this.config = { ...loadConfig(), ...options };
+    /**
+     * Optional per-instance credentials, as { providerId: key }. Set this in
+     * stateless environments (a serverless request, a test) where keys arrive
+     * with the call rather than from the on-disk store.
+     */
+    this.keys = options.keys || null;
     /** Models discovered live from provider /models endpoints. */
     this.discovered = new Map();
     /** Set by `/model <id>` to force one model for everything. */
@@ -169,8 +175,21 @@ export class OmniRouter {
     this.stats = { calls: 0, failovers: 0, byModel: {} };
   }
 
+  /** Resolve a credential, preferring injected keys over the on-disk store. */
+  getKey(providerId) {
+    if (this.keys) {
+      const k = this.keys[providerId];
+      return k ? { key: k, source: 'request' } : null;
+    }
+    return getKey(providerId);
+  }
+
   /** Providers we hold a usable inference credential for. */
   availableProviders() {
+    if (this.keys) return Object.keys(this.keys).filter((id) => {
+      const p = getProvider(id);
+      return p && !p.kind;
+    });
     return configuredProviders().filter((id) => {
       const p = getProvider(id);
       return p && !p.kind;
@@ -185,7 +204,7 @@ export class OmniRouter {
   async refresh({ onProgress } = {}) {
     const results = [];
     for (const id of this.availableProviders()) {
-      const cred = getKey(id);
+      const cred = this.getKey(id);
       if (!cred) continue;
       onProgress?.(id);
       const ids = await listModels(id, cred.key).catch(() => []);
@@ -235,7 +254,7 @@ export class OmniRouter {
     const ranked = [];
 
     for (const m of this.pool()) {
-      const cred = getKey(m.provider);
+      const cred = this.getKey(m.provider);
       if (!cred) continue;
 
       const why = [];
@@ -285,7 +304,7 @@ export class OmniRouter {
     if (pinnedForTask) {
       const m = findModel(pinnedForTask);
       if (m) {
-        const cred = getKey(m.provider);
+        const cred = this.getKey(m.provider);
         if (cred) return { model: m, provider: m.provider, key: cred.key, score: 999, why: [`pinned for ${task}`] };
       }
     }

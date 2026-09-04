@@ -20,11 +20,15 @@
   "scripts": {
     "start": "node bin/olly.js",
     "test": "node --test test/*.test.js",
-    "lint": "for f in $(find bin src test -name \"*.js\"); do node --check \"$f\" || exit 1; done && echo ok"
+    "lint": "for f in $(find bin src test -name \"*.js\"); do node --check \"$f\" || exit 1; done && echo ok",
+    "web": "node scripts/dev-server.js"
   },
   "files": [
     "bin",
     "src",
+    "api",
+    "public",
+    "scripts",
     "README.md"
   ],
   "keywords": [
