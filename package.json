@@ -1,0 +1,42 @@
+{
+  "name": "ollyai",
+  "version": "0.1.0",
+  "description": "OllyAI - a Claude Code style terminal coding agent powered by free NVIDIA NIM and open-source models, with OpenRouter-style automatic model routing.",
+  "type": "module",
+  "bin": {
+    "olly": "bin/olly.js",
+    "ollyai": "bin/olly.js",
+    "ollycod": "bin/olly.js"
+  },
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./router": "./src/router/router.js",
+    "./keys": "./src/router/keyparse.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node bin/olly.js",
+    "test": "node --test test/*.test.js",
+    "lint": "for f in $(find bin src test -name \"*.js\"); do node --check \"$f\" || exit 1; done && echo ok"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "cli",
+    "nvidia-nim",
+    "openrouter",
+    "llm",
+    "agent",
+    "free-models"
+  ],
+  "license": "MIT",
+  "dependencies": {}
+}

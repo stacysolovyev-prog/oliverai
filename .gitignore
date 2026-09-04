@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+package-lock.json
+
+# OllyAI local state — NEVER commit these, they hold API keys
+.ollyai/
+.olly/
+*.key
+.env
+.env.*
+!.env.example
+ollyai.config.json
+ollyai.local.json
+
+# workspaces where OllyAI clones your repos
+workspaces/
+repos/
+
+# logs / scratch
+*.log
+.DS_Store
+tmp/
+.cache/
