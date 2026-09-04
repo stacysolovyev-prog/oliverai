@@ -2,9 +2,20 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 
-/** Root of all OllyAI user state. Override with OLLYAI_HOME. */
+/**
+ * Root of all OllyAI user state. Override with OLLYAI_HOME.
+ *
+ * On serverless platforms the home directory is read-only and only /tmp can
+ * be written, so detect that and fall back rather than failing on first use.
+ */
+const SERVERLESS = Boolean(
+  process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT,
+);
+
 export function ollyHome() {
-  return process.env.OLLYAI_HOME || path.join(os.homedir(), '.ollyai');
+  if (process.env.OLLYAI_HOME) return process.env.OLLYAI_HOME;
+  if (SERVERLESS) return '/tmp/.ollyai';
+  return path.join(os.homedir(), '.ollyai');
 }
 
 export const paths = {
@@ -19,10 +30,14 @@ export const paths = {
 
 export function ensureHome() {
   const h = ollyHome();
-  if (!fs.existsSync(h)) fs.mkdirSync(h, { recursive: true, mode: 0o700 });
-  for (const d of [paths.sessions, paths.workspaces, paths.logs]) {
-    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true, mode: 0o700 });
-  }
+  // A read-only filesystem must not take down a request that never needed to
+  // persist anything, so treat directory creation as best effort.
+  try {
+    if (!fs.existsSync(h)) fs.mkdirSync(h, { recursive: true, mode: 0o700 });
+    for (const d of [paths.sessions, paths.workspaces, paths.logs]) {
+      if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true, mode: 0o700 });
+    }
+  } catch { /* stateless environment; callers fall back to defaults */ }
   return h;
 }
 
@@ -35,6 +50,9 @@ export function readJson(file, fallback = null) {
 /** Write JSON atomically with owner-only permissions (these files hold secrets). */
 export function writeJson(file, data, mode = 0o600) {
   ensureHome();
+  // Callers that must know about a failure catch it; the rest treat state as
+  // best effort so a read-only disk never breaks a request.
+
   const dir = path.dirname(file);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   const tmp = `${file}.${process.pid}.tmp`;

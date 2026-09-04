@@ -42,7 +42,8 @@ export function loadConfig(force = false) {
 export function saveConfig(patch = {}) {
   const cfg = { ...loadConfig(), ...patch };
   _config = cfg;
-  writeJson(paths.config, cfg, 0o600);
+  try { writeJson(paths.config, cfg, 0o600); }
+  catch { /* stateless environment: keep the change in memory only */ }
   return cfg;
 }
 
@@ -54,7 +55,8 @@ export function loadKeys(force = false) {
 }
 
 function persistKeys() {
-  writeJson(paths.keys, _keys || {}, 0o600);
+  try { writeJson(paths.keys, _keys || {}, 0o600); }
+  catch { /* stateless environment: keys live for this process only */ }
 }
 
 /**

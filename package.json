@@ -15,7 +15,7 @@
     "./keys": "./src/router/keyparse.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "22.x"
   },
   "scripts": {
     "start": "node bin/olly.js",
