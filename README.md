@@ -222,8 +222,9 @@ visitor's own requests. The server stores and logs nothing.
 
 ### Editing repos from the web app
 
-Enter `owner/repo` in the **Repository** box and OllyAI works on it directly
-through the GitHub API — no clone, no local checkout:
+Add a GitHub token in **settings** and the **Repository** dropdown fills with
+every repo that token can reach — pick one and OllyAI works on it directly
+through the GitHub API, no clone and no local checkout:
 
 | | |
 |---|---|

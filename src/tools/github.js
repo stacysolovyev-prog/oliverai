@@ -317,6 +317,31 @@ export function githubTools(session) {
   ];
 }
 
+/**
+ * Every repository this token can reach, most recently pushed first.
+ *
+ * Typing "owner/repo" by hand means guessing at both the name and whether the
+ * token was granted access to it; listing them removes both guesses.
+ */
+export async function listRepos(token, max = 200) {
+  if (!token) return [];
+  const out = [];
+  for (let page = 1; page <= Math.ceil(max / 100); page += 1) {
+    const batch = await gh(token,
+      `/user/repos?per_page=100&page=${page}&sort=pushed&affiliation=owner,collaborator,organization_member`);
+    if (!Array.isArray(batch) || !batch.length) break;
+    out.push(...batch);
+    if (batch.length < 100) break;
+  }
+  return out.map((r) => ({
+    slug: r.full_name,
+    private: r.private,
+    canPush: Boolean(r.permissions?.push),
+    defaultBranch: r.default_branch,
+    pushedAt: r.pushed_at,
+  }));
+}
+
 /** Check a token and report what it can reach. */
 export async function whoami(token) {
   const user = await gh(token, '/user');
@@ -324,8 +349,11 @@ export async function whoami(token) {
 }
 
 export async function canAccess(token, repo) {
+  let owner; let name;
+  try { ({ owner, name } = splitRepo(repo)); }
+  catch (e) { return { ok: false, error: e.message }; }
+
   try {
-    const { owner, name } = splitRepo(repo);
     const r = await gh(token, `/repos/${owner}/${name}`);
     return {
       ok: true,
@@ -335,7 +363,24 @@ export async function canAccess(token, repo) {
       canPush: Boolean(r.permissions?.push),
     };
   } catch (e) {
-    return { ok: false, error: e.message };
+    // GitHub answers 404 rather than 403 for a repo the credential cannot see,
+    // so a bare "Not Found" is misleading: the usual cause is a token without
+    // access to it, not a repo that does not exist.
+    if (e.status === 404) {
+      return {
+        ok: false,
+        error: token
+          ? `Cannot see ${owner}/${name}. Either the name is wrong, or your token has no access to it. `
+            + 'A classic token (ghp_...) needs the "repo" scope; a fine-grained token must list this '
+            + 'repository under Repository access, and be approved by the organisation that owns it.'
+          : `Cannot see ${owner}/${name}. If it is private, add a GitHub token in the key panel.`,
+        status: 404,
+      };
+    }
+    if (e.status === 401) {
+      return { ok: false, error: 'That GitHub token was rejected. It may be expired or revoked.', status: 401 };
+    }
+    return { ok: false, error: e.message, status: e.status };
   }
 }
 
