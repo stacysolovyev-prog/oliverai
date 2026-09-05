@@ -204,6 +204,10 @@
         <select id="repo"><option value="">— none —</option></select>
         <button class="btn" id="reload">Reload</button>
       </div>
+      <div class="inline" style="margin-top:8px">
+        <input id="repoadd" placeholder="or paste any repo you can reach — owner/name or a GitHub URL" autocapitalize="off" spellcheck="false">
+        <button class="btn" id="addrepo">Add</button>
+      </div>
       <div class="note" id="reponote">Add a GitHub token above and your repositories appear here.</div>
     </div>
   </div>
@@ -445,9 +449,11 @@ async function loadRepos({ quiet = false } = {}) {
     repoList = r.repos;
     renderRepoOptions();
     const writable = repoList.filter((x) => x.canPush).length;
-    $('#reponote').className = 'note good';
+    $('#reponote').className = r.hint ? 'note' : 'note good';
     $('#reponote').innerHTML = `✓ ${esc(r.user.login)} · ${esc(repoList.length)} repositories, `
-      + `${esc(writable)} you can commit to`;
+      + `${esc(writable)} you can commit to`
+      + (r.orgs?.length ? ` · orgs: ${esc(r.orgs.join(', '))}` : '')
+      + (r.hint ? `<br>${esc(r.hint)}` : '');
   } catch (e) {
     $('#reponote').className = 'note bad';
     $('#reponote').textContent = e.message;
@@ -469,6 +475,46 @@ $('#repo').onchange = () => {
 };
 
 $('#reload').onclick = () => loadRepos();
+
+/**
+ * Add a repository by name.
+ *
+ * Listing endpoints can miss a repository you can nonetheless reach - an
+ * organisation repo you are a collaborator on is the common case - so the
+ * authoritative check is asking about that repo directly.
+ */
+$('#addrepo').onclick = async () => {
+  const want = $('#repoadd').value.trim();
+  if (!want) return;
+  $('#reponote').className = 'note';
+  $('#reponote').textContent = 'checking access…';
+  try {
+    const r = await post('/api/repo', { keys, repo: want });
+    if (!r.ok) {
+      $('#reponote').className = 'note bad';
+      $('#reponote').textContent = r.error;
+      return;
+    }
+    if (!repoList.some((x) => x.slug === r.slug)) {
+      repoList.unshift({ slug: r.slug, private: r.private, canPush: r.canPush, defaultBranch: r.defaultBranch });
+    }
+    repo = r.slug;
+    store.set('ollyai.repo.v1', repo);
+    if (current) { current.repo = repo; persistSessions(); }
+    renderRepoOptions(); renderTags();
+    $('#repoadd').value = '';
+    $('#reponote').className = 'note good';
+    $('#reponote').innerHTML = `✓ <b>${esc(r.slug)}</b> · ${r.private ? 'private' : 'public'} · `
+      + `${r.canPush ? 'edits go to a new branch and open a pull request' : 'read-only — this token cannot commit here'}`;
+  } catch (e) {
+    $('#reponote').className = 'note bad';
+    $('#reponote').textContent = e.message;
+  }
+};
+
+$('#repoadd').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#addrepo').click(); }
+});
 
 // ---------------------------------------------------------------- turn
 

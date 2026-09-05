@@ -223,8 +223,18 @@ visitor's own requests. The server stores and logs nothing.
 ### Editing repos from the web app
 
 Add a GitHub token in **settings** and the **Repository** dropdown fills with
-every repo that token can reach — pick one and OllyAI works on it directly
-through the GitHub API, no clone and no local checkout:
+everything that token can reach — your own repos, ones you collaborate on, and
+repos belonging to organisations you are a member of.
+
+A repository that listing misses can be added by name: paste `owner/repo` or a
+GitHub URL into the box below the dropdown and OllyAI asks GitHub about that
+repo directly, which is the authoritative check. If it still cannot see it, the
+message names the likely cause — a classic token without the `repo` scope, or a
+fine-grained token that has not been granted the repository (and approved by
+the organisation that owns it).
+
+Either way OllyAI then works on it through the GitHub API, no clone and no
+local checkout:
 
 | | |
 |---|---|

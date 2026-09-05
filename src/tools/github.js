@@ -15,6 +15,9 @@
 const API = process.env.GITHUB_API_URL || 'https://api.github.com';
 const MAX_FILE = 300_000;
 
+/** Response headers from the most recent call, for scope inspection. */
+let lastHeaders = null;
+
 function headers(token) {
   const h = {
     Accept: 'application/vnd.github+json',
@@ -38,6 +41,9 @@ async function gh(token, path, init = {}, timeoutMs = 25000) {
     const text = await res.text();
     let json = null;
     try { json = JSON.parse(text); } catch { /* some endpoints return no body */ }
+    // Kept so callers can read x-oauth-scopes, which is the only way to tell a
+    // classic token what it is actually allowed to reach.
+    lastHeaders = res.headers;
     if (!res.ok) {
       const msg = json?.message || text.slice(0, 200) || res.statusText;
       const err = new Error(`GitHub ${res.status}: ${msg}`);
@@ -323,29 +329,70 @@ export function githubTools(session) {
  * Typing "owner/repo" by hand means guessing at both the name and whether the
  * token was granted access to it; listing them removes both guesses.
  */
-export async function listRepos(token, max = 200) {
-  if (!token) return [];
+async function paged(token, path, max = 300) {
   const out = [];
   for (let page = 1; page <= Math.ceil(max / 100); page += 1) {
-    const batch = await gh(token,
-      `/user/repos?per_page=100&page=${page}&sort=pushed&affiliation=owner,collaborator,organization_member`);
+    const sep = path.includes('?') ? '&' : '?';
+    const batch = await gh(token, `${path}${sep}per_page=100&page=${page}`).catch(() => null);
     if (!Array.isArray(batch) || !batch.length) break;
     out.push(...batch);
     if (batch.length < 100) break;
   }
-  return out.map((r) => ({
-    slug: r.full_name,
-    private: r.private,
-    canPush: Boolean(r.permissions?.push),
-    defaultBranch: r.default_branch,
-    pushedAt: r.pushed_at,
-  }));
+  return out;
+}
+
+export async function listRepos(token, max = 300) {
+  if (!token) return [];
+
+  // /user/repos covers what you own and what you are an explicit collaborator
+  // on, but repos owned by an organisation you belong to are reached through
+  // the org endpoint, so both are needed to see everything you can edit.
+  const mine = await paged(token,
+    '/user/repos?sort=pushed&affiliation=owner,collaborator,organization_member', max);
+
+  const orgs = await paged(token, '/user/orgs', 100);
+  const orgRepos = [];
+  for (const o of orgs) {
+    if (!o?.login) continue;
+    orgRepos.push(...await paged(token, `/orgs/${o.login}/repos?sort=pushed`, max));
+  }
+
+  const seen = new Set();
+  const out = [];
+  for (const r of [...mine, ...orgRepos]) {
+    if (!r?.full_name || seen.has(r.full_name)) continue;
+    seen.add(r.full_name);
+    out.push({
+      slug: r.full_name,
+      private: r.private,
+      canPush: Boolean(r.permissions?.push),
+      defaultBranch: r.default_branch,
+      pushedAt: r.pushed_at,
+    });
+  }
+  out.sort((a, b) => String(b.pushedAt || '').localeCompare(String(a.pushedAt || '')));
+  return out;
+}
+
+/** Organisations the token can see, used to explain a missing repository. */
+export async function listOrgs(token) {
+  if (!token) return [];
+  const orgs = await paged(token, '/user/orgs', 100).catch(() => []);
+  return orgs.map((o) => o.login).filter(Boolean);
 }
 
 /** Check a token and report what it can reach. */
 export async function whoami(token) {
   const user = await gh(token, '/user');
-  return { login: user.login, name: user.name };
+  const raw = lastHeaders?.get('x-oauth-scopes');
+  return {
+    login: user.login,
+    name: user.name,
+    // Classic tokens report their scopes here. Fine-grained tokens send
+    // nothing, which is itself the signal that access is per-repository.
+    scopes: raw ? raw.split(',').map((x) => x.trim()).filter(Boolean) : null,
+    fineGrained: raw === null || raw === '',
+  };
 }
 
 export async function canAccess(token, repo) {
