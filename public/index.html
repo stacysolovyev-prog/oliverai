@@ -203,9 +203,9 @@ function renderKeys() {
         const m = meta[id] || {};
         const cls = m.verified === true ? 'ok' : m.verified === false ? 'bad' : '';
         return `<div class="key"><span class="dot ${cls}"></span>
-          <span class="nm">${id}</span>
-          <span class="msk">${m.masked || ''}</span>
-          <span class="rm" data-rm="${id}" title="remove">✕</span></div>`;
+          <span class="nm">${esc(id)}</span>
+          <span class="msk">${esc(m.masked || '')}</span>
+          <span class="rm" data-rm="${esc(id)}" title="remove">✕</span></div>`;
       }).join('')
     : '<div class="hint">None yet.</div>';
   $('#keys').querySelectorAll('[data-rm]').forEach((el) => {
@@ -213,15 +213,25 @@ function renderKeys() {
   });
 }
 
+/**
+ * Escape before interpolating into innerHTML. Nearly everything shown here is
+ * attacker-influenceable: tool arguments are written by the model, which reads
+ * repository files, and model ids and error strings come from third-party
+ * APIs. All of it is rendered next to API keys held in localStorage.
+ */
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[ch]));
+
 /** Minimal, escaping renderer: fenced code blocks, everything else literal. */
 function render(text) {
-  const esc = (s) => s.replace(/[&<>]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
   return esc(text)
     .split(/```/)
     .map((part, i) => (i % 2 ? `<pre class="code">${part.replace(/^\w*\n/, '')}</pre>` : part))
     .join('');
 }
 
+/** `metaHtml` is pre-escaped markup built by the caller, never raw input. */
 function add(role, text, metaHtml = '') {
   $('#empty')?.remove();
   const el = document.createElement('div');
@@ -259,11 +269,11 @@ $('#addkey').onclick = async () => {
       persist(); renderKeys();
       $('#keyin').value = '';
       $('#keyhint').innerHTML = found
-        .map((k) => `${k.verified === false ? '✕' : '✓'} <b>${k.provider}</b> — ${k.reason}`)
+        .map((k) => `${k.verified === false ? '✕' : '✓'} <b>${esc(k.provider)}</b> — ${esc(k.reason)}`)
         .join('<br>');
     }
   } catch (e) {
-    $('#keyhint').innerHTML = `<span class="err">${e.message}</span>`;
+    $('#keyhint').innerHTML = `<span class="err">${esc(e.message)}</span>`;
   } finally {
     btn.disabled = false; btn.textContent = 'Detect & add';
   }
@@ -280,15 +290,15 @@ $('#checkrepo').onclick = async () => {
     const r = await post('/api/repo', { keys, repo });
     if (r.ok) {
       $('#repohint').innerHTML =
-        `Connected to <b>${r.slug}</b> (${r.private ? 'private' : 'public'}, default `
-        + `<b>${r.defaultBranch}</b>).<br>${r.canPush
+        `Connected to <b>${esc(r.slug)}</b> (${r.private ? 'private' : 'public'}, default `
+        + `<b>${esc(r.defaultBranch)}</b>).<br>${r.canPush
           ? 'You can commit — edits go to a new branch and open a pull request.'
           : 'Read-only: add a token with write access to commit.'}`;
     } else {
-      $('#repohint').innerHTML = `<span class="err">${r.error}</span>`
+      $('#repohint').innerHTML = `<span class="err">${esc(r.error)}</span>`
         + (keys.github ? '' : '<br>Add a GitHub token in the key panel for private repos.');
     }
-  } catch (e) { $('#repohint').innerHTML = `<span class="err">${e.message}</span>`; }
+  } catch (e) { $('#repohint').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 
 $('#showroute').onclick = async () => {
@@ -299,9 +309,9 @@ $('#showroute').onclick = async () => {
   try {
     const r = await post('/api/route', { keys, task: $('#task').value });
     $('#rank').innerHTML = r.ranking.slice(0, 6)
-      .map((x) => `${String(x.rank).padStart(2)}. <b>${x.model}</b><br>&nbsp;&nbsp;&nbsp;${x.provider} · ${x.score}${x.free ? ' · free' : ''}`)
+      .map((x) => `${esc(String(x.rank).padStart(2))}. <b>${esc(x.model)}</b><br>&nbsp;&nbsp;&nbsp;${esc(x.provider)} · ${esc(x.score)}${x.free ? ' · free' : ''}`)
       .join('<br>');
-  } catch (e) { $('#rank').innerHTML = `<span class="err">${e.message}</span>`; }
+  } catch (e) { $('#rank').innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 };
 
 async function send() {
@@ -328,7 +338,7 @@ async function send() {
     const secs = Math.round((Date.now() - t0) / 1000);
     const phase = phases[Math.min(Math.floor(secs / 12), phases.length - 1)];
     pending.querySelector('.body').innerHTML =
-      `<span class="working">${phase}… ${secs}s</span>`;
+      `<span class="working">${esc(phase)}… ${esc(secs)}s</span>`;
   }, 250);
 
   try {
@@ -339,16 +349,16 @@ async function send() {
       ? `<span class="fo">failed over ${r.failovers.length}×</span> · ` : '';
     const trace = r.trace?.length
       ? `<div class="trace">${r.trace.map((t) =>
-          `<span class="t">⏺ ${t.tool}</span> <span class="d">${t.detail || ''}</span>`).join('<br>')}</div>`
+          `<span class="t">⏺ ${esc(t.tool)}</span> <span class="d">${esc(t.detail || '')}</span>`).join('<br>')}</div>`
       : '';
-    const br = r.branch ? `<span class="pill">branch ${r.branch}</span>` : '';
+    const br = r.branch ? `<span class="pill">branch ${esc(r.branch)}</span>` : '';
     pending.innerHTML = `<div class="who">⬢ ollyai</div><div class="body">${render(r.reply)}</div>${trace}
-      <div class="meta">${fo}<span class="pill">${r.modelName || r.model}</span>
-      <span class="pill">${r.provider}</span><span class="pill">${r.task}</span>
+      <div class="meta">${fo}<span class="pill">${esc(r.modelName || r.model)}</span>
+      <span class="pill">${esc(r.provider)}</span><span class="pill">${esc(r.task)}</span>
       <span class="pill">${(r.ms / 1000).toFixed(1)}s</span>${br}${r.free ? '<span class="pill">free</span>' : ''}</div>`;
   } catch (e) {
     clearInterval(tick);
-    pending.innerHTML = `<div class="who">⬢ ollyai</div><div class="body err">${e.message}</div>`;
+    pending.innerHTML = `<div class="who">⬢ ollyai</div><div class="body err">${esc(e.message)}</div>`;
   } finally {
     clearInterval(tick);
     busy = false; $('#send').disabled = false;
@@ -380,10 +390,10 @@ async function loadStatus() {
   if (host.hostKey) {
     $('#keyhdr').textContent = 'Add a key — optional';
     $('#keyhint').innerHTML =
-      `This site already has a key (<b>${host.providers.map((p) => p.id).join(', ')}</b>), so you can just start typing. `
+      `This site already has a key (<b>${esc(host.providers.map((p) => p.id).join(', '))}</b>), so you can just start typing. `
       + 'Adding your own uses your quota instead; it stays in this browser.';
     $('#ready').innerHTML =
-      `<b>Ready.</b> ${host.models} models reachable · brain: <b>${host.brain?.name || '-'}</b> `
+      `<b>Ready.</b> ${esc(host.models)} models reachable · brain: <b>${esc(host.brain?.name || '-')}</b> `
       + '· no key needed — just type below.<br><br>';
   } else {
     $('#ready').innerHTML = '<b>Add a key to begin.</b> Nothing is stored on the server.<br><br>';

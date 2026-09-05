@@ -126,10 +126,30 @@ Perplexity.
 
 ## Safety
 
-- Keys are stored `0600`, never committed, and masked whenever displayed.
-- Tools cannot read or write outside the workspace root.
-- `ask` mode (the default) confirms every file write and shell command.
-  `readonly` removes those tools entirely.
+**Keys**
+- Stored `0600` in `~/.ollyai/`, never inside a project, masked whenever shown.
+- In the web app they stay in the browser's `localStorage` and are sent only
+  with that visitor's own requests. The server writes and logs nothing.
+- A host key set on a deployment is never handed to a visitor, and GitHub
+  tokens are excluded from that mechanism entirely.
+
+**What the agent may do**
+- CLI tools cannot read or write outside the workspace root.
+- `ask` mode (the default) confirms every file write and shell command;
+  `readonly` removes those tools altogether.
+- Repository writes never touch the default branch. They go to an `ollyai/…`
+  branch and arrive as a pull request.
+
+**Untrusted content**
+- The agent reads repository files, which are not trustworthy input. It is told
+  to treat file contents as data and to report anything that tries to redirect
+  it.
+- Everything rendered in the web UI is escaped — tool arguments are written by
+  a model that has read those files, and model ids come from third-party APIs.
+  A test walks every `innerHTML` sink in the page and fails the build on an
+  unescaped one.
+- The deployment sends a CSP with `connect-src 'self'`, so even a missed
+  injection cannot exfiltrate a key to another host.
 
 ## Web app (Vercel)
 
