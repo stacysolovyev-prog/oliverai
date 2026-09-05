@@ -75,7 +75,10 @@ export const PROVIDERS = {
     api: 'openai',
     base: 'https://models.github.ai/inference',
     auth: 'bearer',
-    envVars: ['GITHUB_MODELS_TOKEN', 'GITHUB_TOKEN'],
+    // Deliberately not GITHUB_TOKEN: that is usually CI's git credential, not
+    // an inference key, and picking it up makes the provider look configured
+    // when no model can actually be served.
+    envVars: ['GITHUB_MODELS_TOKEN'],
     signup: 'https://github.com/marketplace/models',
     free: true,
     notes: 'Any GitHub PAT unlocks a free inference tier.',

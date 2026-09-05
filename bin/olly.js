@@ -32,6 +32,7 @@ ${green.mid('Usage')}
   olly models                   List every model reachable with your keys
   olly route [plan|code|fast]   Show how OmniRoute ranks models for a task
   olly refresh                  Re-discover models from each provider
+  olly doctor [owner/repo]      Check keys, models, tool calling and repo access
 
 ${green.mid('Options')}
   -C, --cwd <dir>               Work in this directory
@@ -145,6 +146,12 @@ async function main() {
     case 'refresh': {
       const router = new OmniRouter();
       for (const r of await router.refresh()) console.log(`${r.provider}: ${r.count} models`);
+      return;
+    }
+    case 'doctor': {
+      const { doctor } = await import('../src/cli/doctor.js');
+      const okAll = await doctor({ repo: rest[0] || null });
+      process.exit(okAll ? 0 : 1);
       return;
     }
     case 'logo':

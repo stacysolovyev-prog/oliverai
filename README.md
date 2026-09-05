@@ -66,6 +66,26 @@ Inside a session:
 | `/mode ask\|auto\|readonly` | how much it may do unattended |
 | `/cost` | tokens, failovers, models used |
 
+## Is it working?
+
+```bash
+olly doctor                          # keys, models, tool calling
+olly doctor HIveAppDeveloper/Hive-app  # ...and access to one repo
+```
+
+Every line is a real call, not a guess:
+
+```
+  PASS  key: google              AQ.Ab8R******LmGA via stored
+  PASS  models reachable         33 across 2 provider(s)
+  PASS  model answers            gemini-3.1-flash-lite (google) in 1.4s
+  PASS  tool calling             gemini-3.8-flash called read_file
+  PASS  repo: owner/name         private, default branch main
+  PASS    write access           OllyAI can commit and open pull requests
+```
+
+It exits non-zero if anything is broken, so it works in CI too.
+
 ## OmniRoute
 
 Routing is the point. Every turn is classified (`plan`, `code`, `fast`, `long`)
