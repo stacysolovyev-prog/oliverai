@@ -21,3 +21,6 @@ repos/
 .DS_Store
 tmp/
 .cache/
+
+# Vercel local build output
+.vercel/

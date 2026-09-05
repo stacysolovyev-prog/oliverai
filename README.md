@@ -174,10 +174,17 @@ needed"*. A visitor's own key always takes priority over yours.
 
 ### Deploy
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/stacysolovyev-prog/oliverai&env=GEMINI_API_KEY&envDescription=Optional%20-%20set%20one%20and%20the%20site%20works%20with%20no%20key%20pasted&envLink=https://aistudio.google.com/apikey)
+
+Or from the command line:
+
 ```bash
 npm i -g vercel
 vercel --prod
 ```
+
+The build is verified: `vercel build` produces five functions on `nodejs22.x`
+plus the static UI, with no build step and no dependencies to install.
 
 Or import the repo at [vercel.com/new](https://vercel.com/new). No build step,
 no framework, no dependencies — Vercel serves `public/` and turns `api/*.js`
