@@ -7,113 +7,197 @@
 <meta name="description" content="A coding agent that runs on free models.">
 <style>
   :root{
-    --bg:#0d0d0d; --bg2:#151515; --line:#242424; --line2:#2f2f2f;
-    --fg:#e6e6e6; --dim:#8a8a8a; --faint:#5c5c5c;
+    --bg:#1a1a19; --side:#141413; --panel:#212120; --hover:#2a2a28;
+    --line:#2e2e2c; --line2:#3a3a37;
+    --fg:#f0eee6; --dim:#a3a099; --faint:#6f6c65;
     --green:#4ade80; --green-dim:#2f8f57; --red:#f87171; --amber:#fbbf24;
     --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,system-ui,sans-serif;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--fg);
-       font:13px/1.6 var(--mono);display:flex;flex-direction:column}
+  body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.6 var(--sans);
+       display:flex;overflow:hidden}
+  button{font-family:inherit}
 
-  /* ---------- header ---------- */
-  header{display:flex;align-items:center;gap:10px;padding:0 16px;height:42px;
-    border-bottom:1px solid var(--line);flex:0 0 auto}
-  .mark{color:var(--green)}
-  .name{font-weight:600}
-  header .sp{margin-left:auto}
-  .chip{color:var(--dim);font-size:12px}
-  .chip b{color:var(--fg);font-weight:500}
-  .iconbtn{background:none;border:1px solid var(--line2);color:var(--dim);
-    border-radius:5px;padding:3px 9px;font:12px var(--mono);cursor:pointer}
-  .iconbtn:hover{color:var(--fg);border-color:var(--faint)}
+  /* ================= sidebar ================= */
+  aside{width:252px;flex:0 0 252px;background:var(--side);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0}
+  .brand{display:flex;align-items:center;gap:8px;padding:14px 14px 10px;font-size:14px;font-weight:600}
+  .brand .m{color:var(--green)}
+  .newchat{margin:0 10px 12px;padding:8px 11px;background:transparent;color:var(--fg);
+    border:1px solid var(--line2);border-radius:8px;cursor:pointer;text-align:left;
+    font-size:13px;display:flex;align-items:center;gap:8px}
+  .newchat:hover{background:var(--hover);border-color:var(--faint)}
+  .newchat span{color:var(--dim)}
 
-  /* ---------- settings drawer ---------- */
-  #settings{display:none;border-bottom:1px solid var(--line);background:var(--bg2);
-    padding:14px 16px;flex:0 0 auto}
-  #settings.open{display:block}
-  .wrap{max-width:760px;margin:0 auto}
-  .field{margin-bottom:12px}
-  .field:last-child{margin-bottom:0}
-  label{display:block;color:var(--faint);font-size:11px;margin-bottom:5px;
-    letter-spacing:.08em;text-transform:uppercase}
-  .inline{display:flex;gap:8px}
-  select{cursor:pointer}
-  input,textarea,select{flex:1;width:100%;background:var(--bg);color:var(--fg);
-    border:1px solid var(--line2);border-radius:5px;padding:7px 9px;
-    font:13px var(--mono);resize:none}
-  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--green-dim)}
-  .btn{background:var(--bg2);color:var(--fg);border:1px solid var(--line2);border-radius:5px;
-    padding:7px 14px;font:13px var(--mono);cursor:pointer;white-space:nowrap}
-  .btn:hover{border-color:var(--green-dim);color:var(--green)}
-  .note{color:var(--faint);font-size:12px;margin-top:6px}
-  .note.bad{color:var(--red)}
-  .note.good{color:var(--green-dim)}
-  .keys{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-  .k{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line2);
-    border-radius:20px;padding:2px 10px;font-size:12px;color:var(--dim)}
-  .k b{color:var(--fg);font-weight:500}
-  .k .x{cursor:pointer;color:var(--faint)}
-  .k .x:hover{color:var(--red)}
+  .hist{flex:1;overflow-y:auto;padding:0 8px 8px;min-height:0}
+  .grp{color:var(--faint);font-size:11px;font-weight:600;padding:12px 8px 5px;
+    letter-spacing:.04em}
+  .item{display:flex;align-items:center;gap:6px;padding:7px 9px;border-radius:7px;
+    cursor:pointer;color:var(--dim);font-size:13px}
+  .item:hover{background:var(--hover);color:var(--fg)}
+  .item.on{background:var(--panel);color:var(--fg)}
+  .item .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .item .x{opacity:0;color:var(--faint);font-size:12px}
+  .item:hover .x{opacity:1}
+  .item .x:hover{color:var(--red)}
+  .empty{color:var(--faint);font-size:12px;padding:10px 9px}
 
-  /* ---------- conversation ---------- */
-  #log{flex:1;overflow-y:auto;padding:26px 16px}
-  .msg{max-width:760px;margin:0 auto 22px}
-  .u{color:var(--dim);white-space:pre-wrap;word-wrap:break-word}
-  .u::before{content:"> ";color:var(--faint)}
-  .a{white-space:pre-wrap;word-wrap:break-word}
-  pre.code{background:var(--bg2);border:1px solid var(--line);border-radius:5px;
-    padding:11px;overflow-x:auto;margin:10px 0;font-size:12.5px;line-height:1.55}
-  .tool{color:var(--green-dim);font-size:12.5px;margin:2px 0}
+  .foot{border-top:1px solid var(--line);padding:8px}
+  .srow{display:flex;align-items:center;gap:8px;width:100%;padding:8px 9px;border-radius:7px;
+    background:none;border:0;color:var(--dim);cursor:pointer;font-size:13px;text-align:left}
+  .srow:hover{background:var(--hover);color:var(--fg)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--faint);flex:0 0 auto}
+  .dot.ok{background:var(--green)}
+
+  /* ================= main ================= */
+  main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  .top{height:46px;flex:0 0 auto;display:flex;align-items:center;gap:10px;
+    padding:0 18px;border-bottom:1px solid var(--line)}
+  .top .title{font-size:13.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .top .sp{margin-left:auto}
+  .tag{font:12px var(--mono);color:var(--dim);border:1px solid var(--line);
+    border-radius:6px;padding:3px 8px;white-space:nowrap}
+  .tag b{color:var(--fg);font-weight:500}
+
+  #log{flex:1;overflow-y:auto;padding:26px 18px 8px;min-height:0}
+  .col{max-width:720px;margin:0 auto}
+  .msg{margin-bottom:24px}
+  .who{font-size:11px;font-weight:600;color:var(--faint);letter-spacing:.05em;margin-bottom:6px}
+  .msg.me .who{color:var(--faint)}
+  .msg.ai .who{color:var(--green-dim)}
+  .body{white-space:pre-wrap;word-wrap:break-word}
+  .msg.me .body{color:var(--dim)}
+  pre.code{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    padding:12px;overflow-x:auto;margin:10px 0;font:12.5px/1.55 var(--mono)}
+  .tools{margin-bottom:12px}
+  .tool{font:12.5px var(--mono);color:var(--green-dim);margin:3px 0}
+  code.ic{font:12.5px var(--mono);background:var(--panel);border:1px solid var(--line);
+    border-radius:4px;padding:1px 5px}
   .tool b{color:var(--green);font-weight:400}
   .tool i{color:var(--faint);font-style:normal}
-  .foot{color:var(--faint);font-size:11.5px;margin-top:10px}
-  .foot span{margin-right:12px}
+  .meta{font:11.5px var(--mono);color:var(--faint);margin-top:10px}
+  .meta span{margin-right:12px}
   .bad{color:var(--red)}
   .warn{color:var(--amber)}
-  .working{color:var(--green-dim)}
-  .working::after{content:"▊";animation:b 1s steps(2) infinite}
-  @keyframes b{0%,50%{opacity:1}51%,100%{opacity:0}}
+  .working{color:var(--green-dim);font:13px var(--mono)}
+  .working::after{content:"▊";animation:bl 1s steps(2) infinite}
+  @keyframes bl{0%,50%{opacity:1}51%,100%{opacity:0}}
 
-  .hello{max-width:760px;margin:0 auto;color:var(--dim)}
-  .hello .big{color:var(--green);font-size:15px;margin-bottom:14px}
-  .hello ul{margin:10px 0 0;padding-left:18px}
-  .hello li{margin:4px 0}
-  .hello code{color:var(--fg)}
-  a{color:var(--green-dim)}
+  .intro{max-width:720px;margin:8vh auto 0;color:var(--dim)}
+  .intro h1{font-size:20px;color:var(--fg);margin:0 0 8px;font-weight:600}
+  .intro h1 .m{color:var(--green)}
+  .intro ul{margin:16px 0 0;padding-left:20px;line-height:2}
+  .intro code{font:12.5px var(--mono);background:var(--panel);border:1px solid var(--line);
+    border-radius:4px;padding:1px 5px;color:var(--fg)}
 
-  /* ---------- input ---------- */
-  footer{flex:0 0 auto;border-top:1px solid var(--line);padding:12px 16px}
-  .bar{max-width:760px;margin:0 auto;display:flex;gap:9px;align-items:flex-start}
-  .ps{color:var(--green);padding-top:7px}
-  #input{border:1px solid var(--line2);border-radius:5px;padding:7px 9px;
-    min-height:34px;max-height:180px;overflow-y:auto;line-height:1.5}
-  .tip{max-width:760px;margin:7px auto 0;color:var(--faint);font-size:11.5px;
-    display:flex;gap:14px}
+  /* ================= composer ================= */
+  .composer{flex:0 0 auto;padding:10px 18px 16px}
+  .box{max-width:720px;margin:0 auto;border:1px solid var(--line2);border-radius:12px;
+    background:var(--panel);padding:10px 12px;display:flex;gap:9px;align-items:flex-start}
+  .box:focus-within{border-color:var(--green-dim)}
+  .ps{color:var(--green);font:13px var(--mono);padding-top:2px}
+  #input{flex:1;background:none;border:0;color:var(--fg);font:14px/1.55 var(--sans);
+    resize:none;outline:none;max-height:180px;overflow-y:auto}
+  .hint{max-width:720px;margin:8px auto 0;color:var(--faint);font-size:11.5px;display:flex;gap:14px}
+
+  /* ================= settings modal ================= */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:20}
+  .scrim.open{display:flex;align-items:center;justify-content:center}
+  .modal{background:var(--bg);border:1px solid var(--line2);border-radius:12px;
+    width:min(560px,92vw);max-height:86vh;overflow-y:auto;padding:20px}
+  .modal h2{margin:0 0 4px;font-size:15px}
+  .modal .sub{color:var(--faint);font-size:12.5px;margin-bottom:18px}
+  .field{margin-bottom:18px}
+  .field:last-child{margin-bottom:0}
+  label{display:block;color:var(--faint);font-size:11px;margin-bottom:6px;
+    letter-spacing:.07em;text-transform:uppercase;font-weight:600}
+  .inline{display:flex;gap:8px}
+  input,select{flex:1;min-width:0;background:var(--side);color:var(--fg);
+    border:1px solid var(--line2);border-radius:7px;padding:8px 10px;font:13px var(--mono)}
+  select{cursor:pointer}
+  input:focus,select:focus{outline:none;border-color:var(--green-dim)}
+  .btn{background:var(--panel);color:var(--fg);border:1px solid var(--line2);border-radius:7px;
+    padding:8px 14px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--green-dim);color:var(--green)}
+  .btn.primary{background:var(--green-dim);border-color:var(--green-dim);color:#06210f;font-weight:600}
+  .btn.primary:hover{background:var(--green);border-color:var(--green);color:#06210f}
+  .note{color:var(--faint);font-size:12.5px;margin-top:8px}
+  .note.bad{color:var(--red)}
+  .note.good{color:var(--green-dim)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line2);
+    border-radius:20px;padding:3px 11px;font:12px var(--mono);color:var(--dim)}
+  .chip b{color:var(--fg);font-weight:500}
+  .chip .x{cursor:pointer;color:var(--faint)}
+  .chip .x:hover{color:var(--red)}
+  .close{float:right;background:none;border:0;color:var(--faint);font-size:18px;cursor:pointer;
+    line-height:1;padding:0 2px}
+  .close:hover{color:var(--fg)}
+
+  .burger{display:none}
+  @media(max-width:760px){
+    aside{position:fixed;inset:0 auto 0 0;z-index:15;transform:translateX(-100%);
+      transition:transform .16s ease}
+    aside.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.5)}
+    .burger{display:inline-block;background:none;border:0;color:var(--dim);
+      font-size:17px;cursor:pointer;padding:0 4px}
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <span class="mark">⬢</span><span class="name">OllyAI</span>
-  <span class="sp"></span>
-  <span class="chip" id="chiprepo"></span>
-  <span class="chip" id="chipmodel">no key</span>
-  <button class="iconbtn" id="toggle">settings</button>
-</header>
+<aside id="side">
+  <div class="brand"><span class="m">⬢</span> OllyAI</div>
+  <button class="newchat" id="newchat"><span>+</span> New chat</button>
+  <div class="hist" id="hist"></div>
+  <div class="foot">
+    <button class="srow" id="opensettings">
+      <span class="dot" id="statusdot"></span>
+      <span id="statustext">Settings</span>
+    </button>
+  </div>
+</aside>
 
-<div id="settings">
-  <div class="wrap">
+<main>
+  <div class="top">
+    <button class="burger" id="burger">☰</button>
+    <span class="title" id="ttl">New chat</span>
+    <span class="sp"></span>
+    <span class="tag" id="tagrepo" hidden></span>
+    <span class="tag" id="tagmodel">no key</span>
+  </div>
+
+  <div id="log"><div class="col" id="col"></div></div>
+
+  <div class="composer">
+    <div class="box">
+      <span class="ps">&gt;</span>
+      <textarea id="input" rows="1" placeholder="Ask anything…"></textarea>
+    </div>
+    <div class="hint">
+      <span>enter to send</span><span>shift+enter for a newline</span>
+    </div>
+  </div>
+</main>
+
+<div class="scrim" id="scrim">
+  <div class="modal">
+    <button class="close" id="closesettings">✕</button>
+    <h2>Settings</h2>
+    <div class="sub">Keys stay in this browser and are sent only with your own requests.</div>
+
     <div class="field">
       <label>API key — paste any format</label>
       <div class="inline">
-        <input id="keyin" placeholder="nvapi-…   GROQ_API_KEY=gsk_…   {&quot;api_key&quot;:&quot;…&quot;}   a curl command   your .env" autocapitalize="off" spellcheck="false">
-        <button class="btn" id="addkey">Add</button>
+        <input id="keyin" placeholder="nvapi-…   GROQ_API_KEY=gsk_…   a curl command   your .env" autocapitalize="off" spellcheck="false">
+        <button class="btn primary" id="addkey">Add</button>
       </div>
       <div class="note" id="keynote"></div>
-      <div class="keys" id="keys"></div>
+      <div class="chips" id="keys"></div>
     </div>
+
     <div class="field">
       <label>Repository</label>
       <div class="inline">
@@ -125,32 +209,8 @@
   </div>
 </div>
 
-<div id="log">
-  <div class="hello" id="hello">
-    <div class="big">⬢ OllyAI</div>
-    <div id="ready">A coding agent that runs on free models.</div>
-    <ul>
-      <li>Add a key in <code>settings</code> — any format, it works out the provider.</li>
-      <li>Set <code>owner/repo</code> to read and edit a repository.</li>
-      <li>Ask for what you want.</li>
-    </ul>
-  </div>
-</div>
-
-<footer>
-  <div class="bar">
-    <span class="ps">&gt;</span>
-    <textarea id="input" rows="1" placeholder="Ask anything…"></textarea>
-  </div>
-  <div class="tip">
-    <span>enter to send</span><span>shift+enter newline</span>
-    <span id="tipmode">code</span>
-  </div>
-</footer>
-
 <script type="module">
 const $ = (s) => document.querySelector(s);
-const KEYS = 'ollyai.keys.v1';
 
 /**
  * Escape before interpolating into innerHTML. Nearly everything shown here is
@@ -162,56 +222,163 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[ch]));
 
-let keys = {};
-let meta = {};
-let messages = [];
-let busy = false;
+const store = {
+  get(k, fallback) {
+    try { return JSON.parse(localStorage.getItem(k)) ?? fallback; } catch { return fallback; }
+  },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } },
+};
+
+let keys = store.get('ollyai.keys.v1', {}).keys || {};
+let meta = store.get('ollyai.keys.v1', {}).meta || {};
+let sessions = store.get('ollyai.sessions.v1', []);
+let repo = store.get('ollyai.repo.v1', '');
+let current = null;      // the open session
 let host = { hostKey: false };
-let repo = localStorage.getItem('ollyai.repo') || '';
+let repoList = [];
+let busy = false;
 
-try {
-  const saved = JSON.parse(localStorage.getItem(KEYS) || '{}');
-  keys = saved.keys || {};
-  meta = saved.meta || {};
-} catch { /* first visit, or storage blocked */ }
+const persistKeys = () => store.set('ollyai.keys.v1', { keys, meta });
+const persistSessions = () => store.set('ollyai.sessions.v1', sessions.slice(0, 80));
 
-function persist() {
-  try { localStorage.setItem(KEYS, JSON.stringify({ keys, meta })); } catch { /* private mode */ }
+// ---------------------------------------------------------------- sessions
+
+function newSession() {
+  current = { id: `s${Date.now()}`, title: 'New chat', messages: [], repo, updatedAt: Date.now() };
+  sessions.unshift(current);
+  renderHistory(); renderLog(); $('#input').focus();
 }
 
-/** Fenced code blocks; everything else stays literal text. */
-function render(text) {
-  return esc(text)
-    .split(/```/)
-    .map((part, i) => (i % 2 ? `<pre class="code">${part.replace(/^\w*\n/, '')}</pre>` : part))
-    .join('');
+function openSession(id) {
+  current = sessions.find((s) => s.id === id) || current;
+  if (current?.repo) { repo = current.repo; renderRepoOptions(); }
+  renderHistory(); renderLog(); renderTags();
 }
 
-function renderChips() {
-  const n = Object.keys(keys).length;
-  $('#chipmodel').innerHTML = n
-    ? `<b>${esc(n)}</b> provider${n === 1 ? '' : 's'}`
-    : (host.hostKey ? `<b>${esc(host.brain?.name || 'ready')}</b>` : 'no key');
-  $('#chiprepo').innerHTML = repo ? `<b>${esc(repo)}</b>` : '';
+function deleteSession(id, ev) {
+  ev.stopPropagation();
+  sessions = sessions.filter((s) => s.id !== id);
+  if (current?.id === id) current = sessions[0] || null;
+  persistSessions();
+  if (!current) newSession(); else { renderHistory(); renderLog(); }
+}
 
-  $('#keys').innerHTML = Object.keys(keys).map((id) =>
-    `<span class="k"><b>${esc(id)}</b>${esc(meta[id]?.masked || '')}<span class="x" data-rm="${esc(id)}">✕</span></span>`).join('');
-  $('#keys').querySelectorAll('[data-rm]').forEach((el) => {
-    el.onclick = () => { delete keys[el.dataset.rm]; delete meta[el.dataset.rm]; persist(); renderChips(); };
+/** Group sessions the way a desktop client does: Today, Yesterday, then older. */
+function groupOf(ts) {
+  const day = 864e5;
+  const midnight = new Date().setHours(0, 0, 0, 0);
+  if (ts >= midnight) return 'Today';
+  if (ts >= midnight - day) return 'Yesterday';
+  if (ts >= midnight - 7 * day) return 'Previous 7 days';
+  return 'Older';
+}
+
+function renderHistory() {
+  const withMsgs = sessions.filter((s) => s.messages.length || s.id === current?.id);
+  if (!withMsgs.length) { $('#hist').innerHTML = '<div class="empty">No conversations yet.</div>'; return; }
+  const groups = new Map();
+  for (const s of withMsgs) {
+    const g = groupOf(s.updatedAt);
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(s);
+  }
+  $('#hist').innerHTML = [...groups].map(([g, list]) =>
+    `<div class="grp">${esc(g)}</div>` + list.map((s) =>
+      `<div class="item${s.id === current?.id ? ' on' : ''}" data-open="${esc(s.id)}">`
+      + `<span class="t">${esc(s.title)}</span>`
+      + `<span class="x" data-del="${esc(s.id)}">✕</span></div>`).join('')).join('');
+
+  $('#hist').querySelectorAll('[data-open]').forEach((el) => {
+    el.onclick = () => { openSession(el.dataset.open); $('#side').classList.remove('open'); };
+  });
+  $('#hist').querySelectorAll('[data-del]').forEach((el) => {
+    el.onclick = (ev) => deleteSession(el.dataset.del, ev);
   });
 }
 
-/** `metaHtml` is pre-escaped markup built by the caller, never raw input. */
-function add(cls, html) {
-  $('#hello')?.remove();
-  const el = document.createElement('div');
-  el.className = 'msg';
-  el.innerHTML = html;
-  if (cls) el.firstElementChild?.classList.add(cls);
-  $('#log').append(el);
-  $('#log').scrollTop = $('#log').scrollHeight;
-  return el;
+// ---------------------------------------------------------------- transcript
+
+/**
+ * Fenced blocks, inline `code` and **bold**; everything else stays literal.
+ * Escaping happens first, so no markup from the model can survive.
+ */
+function render(text) {
+  return esc(text)
+    .split(/```/)
+    .map((part, i) => {
+      if (i % 2) return `<pre class="code">${part.replace(/^\w*\n/, '')}</pre>`;
+      return part
+        .replace(/`([^`\n]+)`/g, '<code class="ic">$1</code>')
+        .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+    })
+    .join('');
 }
+
+function bubble(m) {
+  if (m.role === 'user') {
+    return `<div class="msg me"><div class="who">YOU</div><div class="body">${esc(m.content)}</div></div>`;
+  }
+  const steps = (m.trace || [])
+    .map((t) => `<div class="tool">⏺ <b>${esc(t.tool)}</b> <i>${esc(t.detail || '')}</i></div>`).join('');
+  const tools = steps ? `<div class="tools">${steps}</div>` : '';
+  const meta = m.meta
+    ? `<div class="meta">${[
+        `<span>${esc(m.meta.model || '')}</span>`,
+        `<span>${esc(m.meta.provider || '')}</span>`,
+        `<span>${esc(m.meta.secs || '')}s</span>`,
+        m.meta.branch ? `<span>branch ${esc(m.meta.branch)}</span>` : '',
+        m.meta.failovers ? `<span class="warn">failed over ${esc(m.meta.failovers)}×</span>` : '',
+      ].join('')}</div>`
+    : '';
+  return `<div class="msg ai"><div class="who">⬢ OLLYAI</div>${tools}`
+    + `<div class="body${m.error ? ' bad' : ''}">${render(m.content)}</div>${meta}</div>`;
+}
+
+function renderLog() {
+  $('#ttl').textContent = current?.title || 'New chat';
+  if (!current || !current.messages.length) {
+    $('#col').innerHTML = `<div class="intro">
+      <h1><span class="m">⬢</span> OllyAI</h1>
+      <div id="ready">A coding agent that runs on free models.</div>
+      <ul>
+        <li>Add a key in <code>Settings</code> — any format, it works out the provider.</li>
+        <li>Pick a repository from the list to read and edit it.</li>
+        <li>Ask for what you want.</li>
+      </ul></div>`;
+    if (host.hostKey) showReady();
+    return;
+  }
+  $('#col').innerHTML = current.messages.map(bubble).join('');
+  $('#log').scrollTop = $('#log').scrollHeight;
+}
+
+function showReady() {
+  const el = $('#ready');
+  if (el && host.hostKey) {
+    el.innerHTML = `Ready — <b>${esc(host.models)}</b> models, running on <b>${esc(host.brain?.name || '')}</b>. No key needed.`;
+  }
+}
+
+function renderTags() {
+  const n = Object.keys(keys).length;
+  $('#tagmodel').innerHTML = n
+    ? `<b>${esc(n)}</b> provider${n === 1 ? '' : 's'}`
+    : (host.hostKey ? `<b>${esc(host.brain?.name || 'ready')}</b>` : 'no key');
+  $('#tagrepo').hidden = !repo;
+  $('#tagrepo').innerHTML = `<b>${esc(repo)}</b>`;
+  const ready = n > 0 || host.hostKey;
+  $('#statusdot').className = `dot${ready ? ' ok' : ''}`;
+  $('#statustext').textContent = ready ? 'Settings' : 'Add a key';
+
+  $('#keys').innerHTML = Object.keys(keys).map((id) =>
+    `<span class="chip"><b>${esc(id)}</b>${esc(meta[id]?.masked || '')}`
+    + `<span class="x" data-rm="${esc(id)}">✕</span></span>`).join('');
+  $('#keys').querySelectorAll('[data-rm]').forEach((el) => {
+    el.onclick = () => { delete keys[el.dataset.rm]; delete meta[el.dataset.rm]; persistKeys(); renderTags(); };
+  });
+}
+
+// ---------------------------------------------------------------- network
 
 async function post(path, body) {
   const r = await fetch(path, {
@@ -221,8 +388,6 @@ async function post(path, body) {
   if (!r.ok) throw new Error(j.error || `request failed (${r.status})`);
   return j;
 }
-
-$('#toggle').onclick = () => $('#settings').classList.toggle('open');
 
 $('#addkey').onclick = async () => {
   const text = $('#keyin').value.trim();
@@ -240,13 +405,12 @@ $('#addkey').onclick = async () => {
       keys[k.provider] = k.key;
       meta[k.provider] = { masked: k.masked, verified: k.verified };
     }
-    persist(); renderChips();
+    persistKeys(); renderTags();
     $('#keyin').value = '';
-    const bad = found.filter((k) => k.verified === false);
-    $('#keynote').className = `note ${bad.length ? 'bad' : 'good'}`;
+    const bad = found.some((k) => k.verified === false);
+    $('#keynote').className = `note ${bad ? 'bad' : 'good'}`;
     $('#keynote').innerHTML = found
       .map((k) => `${k.verified === false ? '✕' : '✓'} ${esc(k.provider)}`).join('   ');
-    // A GitHub token is only useful once you can pick a repo with it.
     if (found.some((k) => k.provider === 'github')) loadRepos();
   } catch (e) {
     $('#keynote').className = 'note bad';
@@ -254,12 +418,20 @@ $('#addkey').onclick = async () => {
   }
 };
 
-let repoList = [];
-
 /**
- * Fill the picker with the repositories the token can actually reach, so
- * choosing one cannot be wrong about the name or about access.
+ * Render the picker. A repository saved from an earlier visit is kept as an
+ * option even when it is not in the fetched list, so the box never shows blank
+ * while the chat is still pointed at that repo.
  */
+function renderRepoOptions() {
+  const known = repoList.some((x) => x.slug === repo);
+  const extra = repo && !known ? `<option value="${esc(repo)}" selected>${esc(repo)}</option>` : '';
+  $('#repo').innerHTML = `<option value=""${repo ? '' : ' selected'}>— none —</option>${extra}`
+    + repoList.map((x) => `<option value="${esc(x.slug)}"${x.slug === repo ? ' selected' : ''}>`
+      + `${esc(x.slug)}${x.private ? ' · private' : ''}${x.canPush ? '' : ' · read-only'}</option>`).join('');
+}
+
+/** Fill the picker with repositories the token can actually reach. */
 async function loadRepos({ quiet = false } = {}) {
   if (!keys.github) {
     $('#reponote').className = 'note';
@@ -269,17 +441,10 @@ async function loadRepos({ quiet = false } = {}) {
   if (!quiet) { $('#reponote').className = 'note'; $('#reponote').textContent = 'loading your repositories…'; }
   try {
     const r = await post('/api/repos', { keys });
-    if (!r.ok) {
-      $('#reponote').className = 'note bad';
-      $('#reponote').textContent = r.error;
-      return;
-    }
+    if (!r.ok) { $('#reponote').className = 'note bad'; $('#reponote').textContent = r.error; return; }
     repoList = r.repos;
+    renderRepoOptions();
     const writable = repoList.filter((x) => x.canPush).length;
-    $('#repo').innerHTML = '<option value="">— none —</option>'
-      + repoList.map((x) =>
-        `<option value="${esc(x.slug)}"${x.slug === repo ? ' selected' : ''}>`
-        + `${esc(x.slug)}${x.private ? ' · private' : ''}${x.canPush ? '' : ' · read-only'}</option>`).join('');
     $('#reponote').className = 'note good';
     $('#reponote').innerHTML = `✓ ${esc(r.user.login)} · ${esc(repoList.length)} repositories, `
       + `${esc(writable)} you can commit to`;
@@ -291,8 +456,9 @@ async function loadRepos({ quiet = false } = {}) {
 
 $('#repo').onchange = () => {
   repo = $('#repo').value;
-  try { localStorage.setItem('ollyai.repo', repo); } catch { /* private mode */ }
-  renderChips();
+  store.set('ollyai.repo.v1', repo);
+  if (current) { current.repo = repo; persistSessions(); }
+  renderTags();
   const chosen = repoList.find((x) => x.slug === repo);
   $('#reponote').className = 'note good';
   $('#reponote').innerHTML = repo
@@ -304,52 +470,59 @@ $('#repo').onchange = () => {
 
 $('#reload').onclick = () => loadRepos();
 
+// ---------------------------------------------------------------- turn
+
 async function send() {
   const text = $('#input').value.trim();
   if (!text || busy) return;
-  if (!Object.keys(keys).length && !host.hostKey) {
-    add('', '<div class="a bad">Add an API key in settings first — any format works.</div>');
-    return;
-  }
+  if (!Object.keys(keys).length && !host.hostKey) { openSettings(); return; }
+  if (!current) newSession();
 
   busy = true;
   $('#input').value = ''; $('#input').style.height = 'auto';
-  add('', `<div class="u">${esc(text)}</div>`);
-  messages.push({ role: 'user', content: text });
+  current.messages.push({ role: 'user', content: text });
+  if (current.title === 'New chat') current.title = text.slice(0, 46);
+  current.updatedAt = Date.now();
+  renderHistory(); renderLog();
 
-  const pending = add('', '<div class="a working"></div>');
-  const bodyEl = pending.querySelector('.a');
+  const pending = document.createElement('div');
+  pending.className = 'msg ai';
+  pending.innerHTML = '<div class="who">⬢ OLLYAI</div><div class="working"></div>';
+  $('#col').append(pending);
+  $('#log').scrollTop = $('#log').scrollHeight;
+
   const t0 = Date.now();
   const phases = repo
     ? ['reading the repo', 'working through the files', 'making changes', 'finishing up']
     : ['thinking'];
   const tick = setInterval(() => {
     const secs = Math.round((Date.now() - t0) / 1000);
-    const phase = phases[Math.min(Math.floor(secs / 12), phases.length - 1)];
-    bodyEl.innerHTML = `${esc(phase)} ${esc(secs)}s `;
+    pending.querySelector('.working').innerHTML =
+      `${esc(phases[Math.min(Math.floor(secs / 12), phases.length - 1)])} ${esc(secs)}s `;
   }, 250);
 
   try {
-    const r = await post('/api/chat', { keys, messages, repo });
+    const wire = current.messages.map((m) => ({ role: m.role, content: m.content }));
+    const r = await post('/api/chat', { keys, messages: wire, repo });
     clearInterval(tick);
-    messages.push({ role: 'assistant', content: r.reply });
-
-    const tools = (r.trace || [])
-      .map((t) => `<div class="tool">⏺ <b>${esc(t.tool)}</b> <i>${esc(t.detail || '')}</i></div>`).join('');
-    const foot = [
-      `<span>${esc(r.modelName || r.model || '')}</span>`,
-      `<span>${esc(r.provider || '')}</span>`,
-      `<span>${(r.ms / 1000).toFixed(1)}s</span>`,
-      r.branch ? `<span>branch ${esc(r.branch)}</span>` : '',
-      r.failovers?.length ? `<span class="warn">failed over ${esc(r.failovers.length)}×</span>` : '',
-    ].join('');
-    pending.innerHTML = `${tools}<div class="a">${render(r.reply)}</div><div class="foot">${foot}</div>`;
+    current.messages.push({
+      role: 'assistant',
+      content: r.reply,
+      trace: r.trace,
+      meta: {
+        model: r.modelName || r.model, provider: r.provider,
+        secs: (r.ms / 1000).toFixed(1), branch: r.branch,
+        failovers: r.failovers?.length || 0,
+      },
+    });
   } catch (e) {
     clearInterval(tick);
-    pending.innerHTML = `<div class="a bad">${esc(e.message)}</div>`;
+    current.messages.push({ role: 'assistant', content: e.message, error: true });
   } finally {
     busy = false;
-    $('#log').scrollTop = $('#log').scrollHeight;
+    current.updatedAt = Date.now();
+    persistSessions();
+    renderLog(); renderHistory();
     $('#input').focus();
   }
 }
@@ -362,21 +535,30 @@ $('#input').addEventListener('input', (e) => {
   e.target.style.height = `${Math.min(e.target.scrollHeight, 180)}px`;
 });
 
+// ---------------------------------------------------------------- chrome
+
+const openSettings = () => $('#scrim').classList.add('open');
+$('#opensettings').onclick = openSettings;
+$('#closesettings').onclick = () => $('#scrim').classList.remove('open');
+$('#scrim').onclick = (e) => { if (e.target === $('#scrim')) $('#scrim').classList.remove('open'); };
+$('#newchat').onclick = () => { newSession(); $('#side').classList.remove('open'); };
+$('#burger').onclick = () => $('#side').classList.toggle('open');
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') $('#scrim').classList.remove('open');
+});
+
 /** Ask the deployment what it already has, so we do not nag for a key it holds. */
 async function loadStatus() {
   try {
     const r = await fetch('/api/status');
     if (r.ok) host = await r.json();
   } catch { /* offline: the UI still works once a key is pasted */ }
-  if (host.hostKey) {
-    $('#ready').innerHTML = `Ready — <b>${esc(host.models)}</b> models, running on `
-      + `<b>${esc(host.brain?.name || '')}</b>. No key needed.`;
-  }
-  renderChips();
+  renderTags(); showReady();
 }
 
-renderChips();
-loadStatus();
+if (sessions.length) current = sessions[0]; else newSession();
+renderRepoOptions();
+renderHistory(); renderLog(); renderTags(); loadStatus();
 if (keys.github) loadRepos({ quiet: true });
 $('#input').focus();
 </script>

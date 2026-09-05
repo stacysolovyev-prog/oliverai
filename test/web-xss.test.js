@@ -68,7 +68,7 @@ test('no innerHTML sink interpolates unescaped data', () => {
         literalTernary ||
         /toFixed\(\d\)$/.test(e) ||                  // formatted number
         // Fragments the caller has already escaped before assembling them.
-        /^(fo|foot|tools|trace|br|cls|html|metaHtml)$/.test(e);
+        /^(fo|foot|tools|steps|extra|trace|br|cls|html|meta|metaHtml)$/.test(e);
       if (!safe) failures.push(e.slice(0, 80));
     }
   }
