@@ -111,7 +111,16 @@ export class RepoSession {
     }
     const info = await this.repoInfo();
     this.baseBranch ||= info.default_branch;
-    const ref = await gh(this.token, `/repos/${this.slug}/git/ref/heads/${encodeURIComponent(this.baseBranch)}`);
+    let ref;
+    try {
+      ref = await gh(this.token, `/repos/${this.slug}/git/ref/heads/${encodeURIComponent(this.baseBranch)}`);
+    } catch (e) {
+      if (e.status === 404) {
+        throw new Error(`${this.slug} has no commits on ${this.baseBranch} yet, so there is nothing to `
+          + 'branch from. Push an initial commit to the repository first.');
+      }
+      throw e;
+    }
     const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
     const name = `ollyai/${stamp}`;
     try {
@@ -148,7 +157,14 @@ export function githubTools(session) {
         let files = (tree.tree || []).filter((t) => t.type === 'blob').map((t) => t.path);
         if (path) files = files.filter((f) => f.startsWith(path.replace(/^\//, '')));
         const shown = files.slice(0, max);
-        return `${files.length} files on ${ref}${files.length > shown.length ? ` (showing ${shown.length})` : ''}\n${shown.join('\n')}`;
+        const notes = [];
+        if (tree.truncated) {
+          notes.push('GitHub truncated this tree because the repository is large, so this listing '
+            + 'is incomplete. Use gh_search_code to find files, or list a subdirectory with `path`.');
+        }
+        if (files.length > shown.length) notes.push(`Showing the first ${shown.length} of ${files.length}.`);
+        return `${files.length} files on ${ref}\n${shown.join('\n')}`
+          + (notes.length ? `\n\n${notes.join(' ')}` : '');
       },
     },
     {
